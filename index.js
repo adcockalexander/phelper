@@ -17,7 +17,7 @@ for (const folder of commandFolders) {
 	for (const file of commandFiles) {
 		const filePath = path.join(commandsPath, file);
 		const command = require(filePath);
-		// Set a new item in the Collection with the key as the command name and the value as the exported module
+		
 		if ('data' in command && 'execute' in command) {
 			client.commands.set(command.data.name, command);
 		} else {
@@ -56,7 +56,12 @@ const whitelist = [
     'gs',
     'mastermind',
     'costco',
-    'bot override'
+    'bot override',
+    'amazon',
+    'zephyr',
+    'ze',
+    'flaring',
+    'kanzen'
 ]
 
 client.on(Events.MessageCreate, async (message) => {
@@ -71,7 +76,7 @@ client.on(Events.MessageCreate, async (message) => {
 
         // Mod check
         if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            //approved = true
+            approved = true
         }
 
         for (const whitelistString of whitelist) {
