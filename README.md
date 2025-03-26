@@ -9,4 +9,4 @@ The secret key for Pokehelper is required. `config.json` must be populated with 
 `node deploy-commands.js` before running to register commands with Discord.
 `node index.js` to run the bot.
 
-This bot is not distributed under an open license and may only be used if permission has been granted.
+This bot is not distributed under an open license, do not modify or redistribute this code without asking.
