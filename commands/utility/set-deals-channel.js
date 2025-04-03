@@ -18,11 +18,16 @@ module.exports = {
 		.addStringOption(option =>
 			option.setName('deal-name')
 				.setDescription('What the bot refers to the deal name as (e.g. "deal", "Pokemon Center link", "merch link")')
+				.setRequired(true))
+		.addBooleanOption(option =>
+			option.setName('ping-enabled')
+				.setDescription('Should the bot ping when deals are posted?')
 				.setRequired(true)),
 	async execute(interaction) {
 		const channel = interaction.options.getChannel('channel')
-		const notificationRole = interaction.options.getRole('notification-role').id
+		const notificationRole = interaction.options.getRole('notification-role')
 		const dealName = interaction.options.getString('deal-name')
+		const pingEnabled = interaction.options.getBoolean('ping-enabled')
 
 		if (interaction.client.channelConfig[channel.id]) {
 			await interaction.reply({ 
@@ -31,8 +36,10 @@ module.exports = {
 			});
 		} else {
 			interaction.client.channelConfig[channel.id] = {
-				notificationRole: notificationRole,
-				dealName: dealName
+				notificationRole: notificationRole.id,
+				dealName: dealName,
+				lastPing: null,
+				pingEnabled: pingEnabled
 			}
 
 			fs.writeFile(interaction.client.channelConfigFileName, JSON.stringify(interaction.client.channelConfig), async err => {
@@ -44,9 +51,33 @@ module.exports = {
 						flags: MessageFlags.Ephemeral
 					});
 				} else {
+					var textContent = ''
+
+					const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderators')
+					const adminRole = interaction.guild.roles.cache.find(r => r.name === 'Admins')
+
+					var addNewline = false
+
+					if (modRole != undefined) {
+						textContent = textContent + modRole.toString() + " "
+						addNewline = true
+					}
+
+					if (adminRole != undefined) {
+						textContent = textContent + adminRole.toString() + " "
+						addNewline = true
+					}
+
+					if (addNewline) {
+						textContent = textContent + "\n\n"
+					}
+
+					textContent = textContent + ':white_check_mark: Enabled deals moderation in channel ' + channel.toString() + ' at the request of ' + interaction.member.toString() + '.\n\n'
+
+					textContent = textContent + '[Settings] Notification Role: ' + notificationRole.toString() + ' Pings enabled? ' + pingEnabled + " Deal name? '" + dealName + "'"
+
 					await interaction.reply({ 
-						content: ':white_check_mark: *Enabled deals moderation in channel #' + channel.name + '*', 
-						flags: MessageFlags.Ephemeral
+						content: textContent
 					});
 				}
 			});

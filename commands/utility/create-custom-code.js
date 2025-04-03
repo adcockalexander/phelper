@@ -5,16 +5,10 @@ const XP_TYPE = 1
 const ROLE_TYPE = 2
 const GACHA_TYPE = 3
 
-const codeMap = {
-    'XP': XP_TYPE,
-    'Role': ROLE_TYPE,
-    'Random Role': GACHA_TYPE
-}
-
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('create-code')
-		.setDescription('Create a redemption code')
+		.setName('create-custom-code')
+		.setDescription('Create a custom redemption code, where you specify the redemption key')
 		.setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
     	.setDMPermission(false)
 		.addStringOption(option =>
@@ -26,9 +20,9 @@ module.exports = {
 					{ name: 'Role', value: 'Role' },
                     { name: 'Random Role', value: 'Random Role' }
 				))
-		.addIntegerOption(option =>
-			option.setName('codes')
-				.setDescription('The number of codes to create (max 10 at a time)')
+		.addStringOption(option =>
+			option.setName('key')
+				.setDescription('What should the redemption key be? (1-32 characters)')
 				.setRequired(true))
         .addRoleOption(option =>
             option.setName('role-id')
@@ -36,7 +30,7 @@ module.exports = {
                 .setRequired(false)),
 	async execute(interaction) {
         var type = interaction.options.getString('type')
-        const codes = interaction.options.getInteger('codes')
+        const key = interaction.options.getString('key').toUpperCase()
         const role = interaction.options.getRole('role-id')
         
         if (type == "Role" && Object.is(role, null)) {
@@ -49,35 +43,32 @@ module.exports = {
                 content: ':exclamation: You can\'t provide a role ID when making an XP or Random Role code!', 
                 flags: MessageFlags.Ephemeral
             });
-        } else if (codes > 10) {
+        } else if (key.length < 1) {
             await interaction.reply({ 
-                content: ':exclamation: You can\'t make more than 10 codes at a time!', 
+                content: ':exclamation: Your redemption key is empty!', 
+                flags: MessageFlags.Ephemeral
+            });
+        } else if (key.length > 32) {
+            await interaction.reply({ 
+                content: ':exclamation: Your key is too long (max 32 characters)!', 
                 flags: MessageFlags.Ephemeral
             });
         } else {
             var additionalText = ""
 
             if (type == "Role") {
-                additionalText = "\n\nRole codes have been generated for role " + role.toString()
+                additionalText = "\n\nRole code has been generated for role " + role.toString()
             }
 
-            const codeResults = []
-
-            for (var i = 0; i < codes; i++) {
-                codeResults[i] = Array.from(Array(16), () => Math.floor(Math.random() * 36).toString(36)).join('').toUpperCase()
-            }
-
-            var textContent = ':white_check_mark: Generated ' + codes + ' ' + type + ' codes at the request of ' + interaction.member.toString() + '.\n'
-            + 'Codes will be stored in the database until redeemed or deleted.' + additionalText + '\n\n'
+            var textContent = ':white_check_mark: Generated a custom ' + type + ' code at the request of ' + interaction.member.toString() + '.\n'
+            + 'Code will be stored in the database until redeemed or deleted.' + additionalText + '\n\n'
 
             const db = interaction.client.codeDb
 
             db.serialize(() => {
-                for (var i = 0; i < codes; i++) {
-                    textContent = textContent + codeResults[i] + "\n"
+                textContent = textContent + key
 
-                    db.run(`INSERT INTO codes(key, type, data) VALUES (?, ?, ?)`, codeResults[i], codeMap[type], (role == null) ? null : role.id)
-                }
+                db.run(`INSERT INTO codes(key, type, data) VALUES (?, ?, ?)`, key, type == "XP" ? XP_TYPE : ROLE_TYPE, (role == null) ? null : role.id)
             })
 
             await interaction.reply({ 

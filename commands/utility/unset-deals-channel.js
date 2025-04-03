@@ -31,9 +31,29 @@ module.exports = {
 						flags: MessageFlags.Ephemeral
 					});
 				} else {
+					var textContent = ''
+
+					const modRole = interaction.guild.roles.cache.find(r => r.name === 'Moderators')
+					const adminRole = interaction.guild.roles.cache.find(r => r.name === 'Admins')
+
+					var addNewline = false
+
+					if (modRole != undefined) {
+						textContent = textContent + modRole.toString() + " "
+						addNewline = true
+					}
+
+					if (adminRole != undefined) {
+						textContent = textContent + adminRole.toString() + " "
+						addNewline = true
+					}
+
+					if (addNewline) {
+						textContent = textContent + "\n\n"
+					}
+
 					await interaction.reply({ 
-						content: ':white_check_mark: *Disabled deals moderation in channel #' + channel.name + '*', 
-						flags: MessageFlags.Ephemeral
+						content: textContent + ':white_check_mark: Disabled deals moderation in channel ' + channel.toString() + ' at the request of ' + interaction.member.toString() + '.'
 					});
 				}
 			});

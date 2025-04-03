@@ -3,6 +3,13 @@ const { SlashCommandBuilder, MessageFlags, PermissionsBitField } = require('disc
 
 const XP_TYPE = 1
 const ROLE_TYPE = 2
+const GACHA_TYPE = 3
+
+const codeMap = {
+    'XP': XP_TYPE,
+    'Role': ROLE_TYPE,
+    'Random Role': GACHA_TYPE
+}
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -16,7 +23,8 @@ module.exports = {
 				.setRequired(true)
 				.addChoices(
 					{ name: 'XP', value: 'XP' },
-					{ name: 'Role', value: 'Role' }
+					{ name: 'Role', value: 'Role' },
+					{ name: 'Random Role', value: 'Random Role' }
 				)),
 	async execute(interaction) {
 		var type = interaction.options.getString('type')
@@ -26,7 +34,7 @@ module.exports = {
         const db = interaction.client.codeDb
 
         await db.serialize(async () => {
-            type = type == "XP" ? XP_TYPE : ROLE_TYPE 
+            type = codeMap[type]
 
             db.all("SELECT * FROM codes WHERE type = " + type, (err, rows) => {
                 for (var row of rows) {

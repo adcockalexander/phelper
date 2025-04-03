@@ -17,7 +17,7 @@ for (const folder of commandFolders) {
 	for (const file of commandFiles) {
 		const filePath = path.join(commandsPath, file);
 		const command = require(filePath);
-		
+		// Set a new item in the Collection with the key as the command name and the value as the exported module
 		if ('data' in command && 'execute' in command) {
 			client.commands.set(command.data.name, command);
 		} else {
@@ -48,23 +48,99 @@ client.on(Events.InteractionCreate, async interaction => {
 	}
 });
 
-const whitelist = [
+const override = 'bot override'
+
+const rolePingOverride = '<@&'
+
+const whitelistProducts = [
+    'booster',
+    'bundle',
+    'bobu',
+    'pack',
+    'etb',
+    'spc',
+	'upc',
+    'premium',
+    'collection',
+    'bb',
+    'box',
+    'b&b',
+    'build',
+    'battle',
+    'sleeved',
+    'checklane',
+    'tin',
+    'bw',
+    'blooming waters',
+    'sea and sky',
+    'sea & sky',
+    'boxes',
+    'jt',
+    'journey',
+    'dr',
+    'destined',
+    'prismatic',
+    '151',
+    'ssp',
+    'surging',
+    'twm',
+    'twilight',
+    'scr',
+    'stellar'
+]
+
+const whitelistLocations = [
     'walmart',
+	'wm',
     'pc',
     'pokemon center',
     'gamestop',
     'gs',
     'mastermind',
     'costco',
-    'bot override',
     'amazon',
     'zephyr',
     'ze',
     'flaring',
-    'kanzen'
+    'kanzen',
+    'shoppers',
+    'best buy',
+    'london drugs'
+]
+
+const roleQuestionKeywords = [
+    'how',
+    'where'
+]
+
+const roleKeywords = [
+    'role',
+    'ping'
 ]
 
 client.on(Events.MessageCreate, async (message) => {
+    var roleQuestion = false
+
+    for (const questionKeyword of roleQuestionKeywords) {
+        if (roleQuestion) {
+            break
+        }
+
+        if (message.content.toLowerCase().includes(questionKeyword)) {
+            for (const roleKeyword of roleKeywords) {
+                if (message.content.toLowerCase().includes(roleKeyword)) {
+                    roleQuestion = true
+                    break
+                }
+            }
+        } 
+    }
+
+    if (roleQuestion) {
+        console.log(message.member + ' (' + message.member.displayName + ') seems to be asking about how to get roles, will answer')
+        
+    }
+
     if (client.channelConfig[message.channel.id]) {
         if (message.author.bot) return;
 
@@ -74,31 +150,72 @@ client.on(Events.MessageCreate, async (message) => {
 
         var approved = false
 
-        // Mod check
-        if (message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            approved = true
-        }
+        for (const product of whitelistProducts) {
+            if (approved) {
+                break
+            }
 
-        for (const whitelistString of whitelist) {
-            if (message.content.includes(whitelistString)) {
-                approved = true
+            if (message.content.toLowerCase().includes(product)) {
+                for (const location of whitelistLocations) {
+                    if (message.content.toLowerCase().includes(location)) {
+                        approved = true
+                        break
+                    }
+                }
             } 
         }
 
-        if (message.content.includes('http') || message.content.includes('www')) {
+        if (message.content.toLowerCase().includes('http') || message.content.toLowerCase().includes('www')) {
             approved = true
         }
 
-        if (approved) {
-            console.log("Message looks good! Sending a ping...")
+        if (message.content.toLowerCase().includes(override)) {
+            approved = true
+        }
 
-            message.channel.send(message.member.toString() + ` posted a ${client.channelConfig[message.channel.id].dealName}! <@&${client.channelConfig[message.channel.id].notificationRole}>` 
-            + "\n\nHead over to https://discord.com/channels/750916599749410856/1149025666377973892 to check if there are any discount codes for any deals posted here.")
+        if (message.content.toLowerCase().includes(rolePingOverride)) {
+            approved = true
+        }
+
+        // Mod check
+        if (!approved && message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            console.log("Message doesn't seem to be deals related, but user has moderator permissions. Bypassing...")
+
+            message.author.send("[MOD BYPASS] Your message in " + message.channel.toString() + " doesn't appear to contain both a deal link and location."
+                + "\n\nAs deals moderation is enabled in this channel, it would normally be deleted, but this has been skipped due to your mod permissions."
+                + "\nHowever, a ping has not been created. If you want to ping for this message, you can resend the message and include the words `bot override`."
+            )
+        } else if (approved) {
+            if (client.channelConfig[message.channel.id].pingEnabled) {
+                console.log("Message looks good! Sending a ping...")
+
+                await message.channel.send(message.member.toString() + ` posted a ${client.channelConfig[message.channel.id].dealName}! <@&${client.channelConfig[message.channel.id].notificationRole}>` 
+                + "\n\nHead over to https://discord.com/channels/750916599749410856/1149025666377973892 to check if there are any discount codes for any deals posted here.")
+                .then(async newMsg => {
+                    const lastPing = client.channelConfig[message.channel.id].lastPing
+
+                    if (lastPing != null) {
+                        await message.channel.messages.fetch(client.channelConfig[message.channel.id].lastPing)
+                        .then(async lastMsg => await lastMsg.delete())
+                        .catch(console.error);
+                    }
+
+                    client.channelConfig[message.channel.id].lastPing = newMsg.id
+
+                    fs.writeFile(client.channelConfigFileName, JSON.stringify(client.channelConfig), async err => {
+                        if (err) {
+                            console.error("Couldn't write channel config:", err);
+                        }
+                    })
+                })
+            } else {
+                console.log("Message looks good! Pings aren't enabled, so no ping will be sent.")
+            }
         } else {
             console.log("Message doesn't seem to be deals related. Deleting...")
             await message.delete()
 
-            message.author.send("Your message in " + message.channel.toString() + " was deleted because it doesn't appear to be a deal link or location."
+            message.author.send("Your message in " + message.channel.toString() + " was deleted because it doesn't contain both a deal link and location."
                 + " Please use other channels for discussions. "
                 + "\n\nIf you believe your message was deleted in error, you can override this by including the words `bot override` in your message. Abusing this may result in a mute or ban."
             )
@@ -118,6 +235,22 @@ db.serialize(() => {
             type INTEGER,
             data TEXT
         ) STRICT
+    `)
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS gacha_roles(
+            uid INTEGER PRIMARY KEY,
+            role_id TEXT,
+            tickets INTEGER
+        ) STRICT
+    `)
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS gacha_role_users(
+            uid INTEGER PRIMARY KEY,
+            user_id TEXT,
+            role_id TEXT
+        )
     `)
 })
 
